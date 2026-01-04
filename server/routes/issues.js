@@ -1,0 +1,835 @@
+const express = require('express');
+const router = express.Router();
+const Issue = require('../models/Issue');
+const User = require('../models/User');
+const Notification = require('../models/Notification');
+const { protect, optionalAuth } = require('../middleware/auth');
+const { body, validationResult } = require('express-validator');
+const mongoose = require('mongoose');
+const { upload } = require('../config/cloudinary');
+
+// Middleware to check if MongoDB is connected
+const checkMongoDB = (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      message: 'Database service unavailable. Please try again later.',
+      error: 'MongoDB is not connected'
+    });
+  }
+  next();
+};
+
+// Apply MongoDB check to all routes
+router.use(checkMongoDB);
+
+// @desc    Get all issues for homepage with comprehensive filtering
+// @route   GET /api/issues
+// @access  Public
+router.get('/', optionalAuth, async (req, res) => {
+  try {
+    const {
+      status,
+      category,
+      lat,
+      lng,
+      radius,
+      limit = 50,
+      page = 1,
+      sort = 'newest' // newest, oldest, most_voted, most_commented
+    } = req.query;
+
+    console.log('Received issue query params:', req.query);
+
+    let query = { isActive: true };
+
+    // Filter by status
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    // Filter by category
+    if (category && category !== 'all') {
+      query.category = category;
+    }
+
+    // Filter by location and radius (geospatial query)
+    if (lat && lng && radius) {
+      const latitude = parseFloat(lat);
+      const longitude = parseFloat(lng);
+      const radiusInKm = parseFloat(radius);
+      const radiusInMeters = radiusInKm * 1000; // Convert km to meters
+
+      console.log('Location filter:', { latitude, longitude, radiusInKm, radiusInMeters });
+
+      // Validate coordinates
+      if (isNaN(latitude) || isNaN(longitude) || isNaN(radiusInMeters) ||
+        latitude < -90 || latitude > 90 ||
+        longitude < -180 || longitude > 180 ||
+        radiusInMeters <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid location parameters. Please provide valid lat, lng, and radius values.',
+          received: { lat, lng, radius }
+        });
+      }
+
+      // Use $geoWithin with $centerSphere instead of $near for better compatibility
+      query.location = {
+        $geoWithin: {
+          $centerSphere: [[longitude, latitude], radiusInMeters / 6378137] // Convert meters to radians
+        }
+      };
+    }
+
+    console.log('MongoDB query:', JSON.stringify(query, null, 2));
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Build sort object
+    let sortObject = {};
+    switch (sort) {
+      case 'oldest':
+        sortObject = { createdAt: 1 };
+        break;
+      case 'most_voted':
+        sortObject = { voteCount: -1, createdAt: -1 };
+        break;
+      case 'most_commented':
+        sortObject = { commentCount: -1, createdAt: -1 };
+        break;
+      case 'newest':
+      default:
+        sortObject = { createdAt: -1 };
+        break;
+    }
+
+    // Execute query with population
+    const issues = await Issue.find(query)
+      .populate({
+        path: 'reportedBy',
+        select: 'name email',
+        strictPopulate: false // Add this to fix the strictPopulate error
+      })
+      .populate({
+        path: 'assignedTo',
+        select: 'name email',
+        strictPopulate: false // Add this to fix the strictPopulate error
+      })
+      .populate({
+        path: 'comments.user',
+        select: 'name email',
+        strictPopulate: false // Add this to fix the strictPopulate error
+      })
+      .populate({
+        path: 'upvotes',
+        select: 'name',
+        strictPopulate: false // Add this to fix the strictPopulate error
+      })
+      .populate({
+        path: 'downvotes',
+        select: 'name',
+        strictPopulate: false // Add this to fix the strictPopulate error
+      })
+      .sort(sortObject)
+      .limit(parseInt(limit))
+      .skip(skip);
+
+    console.log(`Found ${issues.length} issues`);
+
+    // Get total count for pagination
+    const total = await Issue.countDocuments(query);
+
+    // Format response for frontend
+    const formattedIssues = issues.map(issue => ({
+      _id: issue._id,
+      id: issue._id, // Add both for compatibility
+      title: issue.title,
+      description: issue.description,
+      category: issue.category,
+      status: issue.status,
+      severity: issue.severity,
+      location: {
+        lat: issue.location.coordinates[1], // latitude
+        lng: issue.location.coordinates[0], // longitude
+        address: issue.location.address
+      },
+      createdAt: issue.createdAt,
+      updatedAt: issue.updatedAt,
+      images: issue.images,
+      anonymous: issue.anonymous,
+      reporter: (issue.reportedBy && (!issue.anonymous || (req.user && req.user.id === issue.reportedBy._id.toString()))) ? {
+        name: issue.reportedBy.name,
+        email: issue.reportedBy.email
+      } : { name: 'Anonymous', email: null },
+      assignedTo: issue.assignedTo ? {
+        name: issue.assignedTo.name,
+        email: issue.assignedTo.email
+      } : null,
+      voteCount: issue.voteCount,
+      upvotes: (issue.upvotes && Array.isArray(issue.upvotes)) ? issue.upvotes.length : 0,
+      downvotes: (issue.downvotes && Array.isArray(issue.downvotes)) ? issue.downvotes.length : 0,
+      commentCount: issue.commentCount,
+      comments: (issue.comments && Array.isArray(issue.comments)) ? issue.comments.map(comment => ({
+        id: comment._id,
+        text: comment.text,
+        createdAt: comment.createdAt,
+        user: {
+          name: comment.user.name,
+          email: comment.user.email
+        }
+      })) : [],
+      priority: issue.priority,
+      estimatedResolutionTime: issue.estimatedResolutionTime,
+      tags: issue.tags,
+      isActive: issue.isActive,
+      flags: [],
+      followers: 0
+    }));
+
+    res.json({
+      success: true,
+      data: formattedIssues,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+        hasNext: skip + parseInt(limit) < total,
+        hasPrev: parseInt(page) > 1
+      },
+      filters: {
+        status: status || 'all',
+        category: category || 'all',
+        location: lat && lng ? { lat, lng, radius } : null,
+        sort
+      }
+    });
+  } catch (error) {
+    console.error('Get issues error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching issues',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// @desc    Get user's issues
+// @route   GET /api/issues/my-issues
+// @access  Private
+router.get('/my-issues', protect, async (req, res) => {
+  try {
+    const { status, category, limit = 20, page = 1 } = req.query;
+
+    let query = { reportedBy: req.user.id, isActive: true };
+
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    if (category && category !== 'all') {
+      query.category = category;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const issues = await Issue.find(query)
+      .populate({
+        path: 'reportedBy',
+        select: 'name email',
+        strictPopulate: false // Add this to fix the strictPopulate error
+      })
+      .populate({
+        path: 'assignedTo',
+        select: 'name email',
+        strictPopulate: false // Add this to fix the strictPopulate error
+      })
+      .populate({
+        path: 'comments.user',
+        select: 'name email',
+        strictPopulate: false // Add this to fix the strictPopulate error
+      })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(skip);
+
+    const total = await Issue.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: issues,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get user issues error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// @desc    Get user statistics
+// @route   GET /api/issues/my-stats
+// @access  Private
+router.get('/my-stats', protect, async (req, res) => {
+  try {
+    const stats = await Issue.getUserStats(req.user.id);
+
+    const userStats = stats[0] || {
+      total: 0,
+      reported: 0,
+      inProgress: 0,
+      resolved: 0,
+      totalVotes: 0,
+      totalComments: 0
+    };
+
+    res.json({
+      success: true,
+      data: userStats
+    });
+  } catch (error) {
+    console.error('Get user stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// @desc    Get single issue
+// @route   GET /api/issues/:id
+// @access  Public
+router.get('/:id', optionalAuth, async (req, res) => {
+  try {
+    const issue = await Issue.findById(req.params.id)
+      .populate({
+        path: 'reportedBy',
+        select: 'name email',
+        strictPopulate: false
+      })
+      .populate('assignedTo', 'name email')
+      .populate('comments.user', 'name email')
+      .populate('upvotes', 'name')
+      .populate('downvotes', 'name');
+
+    if (!issue) {
+      return res.status(404).json({
+        success: false,
+        message: 'Issue not found'
+      });
+    }
+
+    // Sanitize reporter for anonymous issues unless viewer is owner
+    let reporter = { name: 'Anonymous', email: null };
+    if (issue.reportedBy) {
+      if (!issue.anonymous || (req.user && req.user.id === issue.reportedBy._id.toString())) {
+        reporter = {
+          name: issue.reportedBy.name,
+          email: issue.reportedBy.email
+        };
+      }
+    }
+
+    // Convert to object to modify safely
+    const issueObj = issue.toObject();
+    issueObj.reporter = reporter;
+    // Remove raw reportedBy to prevent leak
+    delete issueObj.reportedBy;
+
+    // Helper to calculate virtuals if toObject doesn't include them automatically (it does if schema options set)
+    // But let's ensure structure matches list view
+    issueObj.id = issue._id;
+    issueObj.voteCount = (issue.upvotes?.length || 0) - (issue.downvotes?.length || 0);
+
+    // Format location to match list view
+    if (issueObj.location && issueObj.location.coordinates) {
+      issueObj.location = {
+        lat: issueObj.location.coordinates[1],
+        lng: issueObj.location.coordinates[0],
+        address: issueObj.location.address
+      };
+    } else if (issueObj.location) {
+      // Fallback if no coordinates but location exists
+      issueObj.location = { lat: 0, lng: 0, address: issueObj.location.address || '' };
+    }
+
+    // Format comments
+    if (issueObj.comments) {
+      issueObj.comments = issueObj.comments.map(comment => ({
+        id: comment._id,
+        text: comment.text,
+        createdAt: comment.createdAt,
+        user: comment.user ? { name: comment.user.name } : { name: 'Unknown' } // Hide email in public comments
+      }));
+    }
+
+    res.json({
+      success: true,
+      data: issueObj
+    });
+  } catch (error) {
+    console.error('Get issue error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// @desc    Create new issue (supports both authenticated and anonymous)
+// @route   POST /api/issues
+// @access  Public (with optional auth)
+router.post('/', [
+  upload.array('images', 5),
+  optionalAuth, // Make authentication optional
+  [
+    body('title', 'Title is required').notEmpty().trim(),
+    body('description', 'Description is required').notEmpty().trim(),
+    body('category', 'Valid category is required').isIn(['roads', 'lighting', 'water', 'cleanliness', 'safety', 'obstructions']),
+    // Validators will run after multer populates body
+  ]
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    // filter out location errors if location is a string (we parse it manually later)
+    // Actually simpler to just parse manually first then maybe validate manually or let it fail?
+    // Let's rely on manual validation inside 
+
+    let {
+      title,
+      description,
+      category,
+      severity = 'medium',
+      location,
+      anonymous = false
+    } = req.body;
+
+    // Parse location if it comes as a string from FormData
+    if (typeof location === 'string') {
+      try {
+        location = JSON.parse(location);
+      } catch (e) {
+        return res.status(400).json({ success: false, message: 'Invalid location format' });
+      }
+    }
+
+    // Parse boolean fields
+    if (typeof anonymous === 'string') {
+      anonymous = anonymous === 'true';
+    }
+
+    // Manual generic validation since express-validator might be confused by stringified JSON in FormData
+    if (!title || !description || !category || !location) {
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+
+    const imageUrls = req.files ? req.files.map(file => file.path) : [];
+
+    console.log('Creating issue with data:', { ...req.body, location });
+
+    // Validate coordinates
+    if (!location || typeof location.lat !== 'number' || typeof location.lng !== 'number') {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid location coordinates are required',
+        received: location
+      });
+    }
+
+    // Prepare issue data with proper MongoDB geospatial format
+    const issueData = {
+      title,
+      description,
+      category,
+      severity,
+      location: {
+        type: 'Point',
+        coordinates: [location.lng, location.lat], // MongoDB format: [longitude, latitude]
+        address: location.address || ''
+      },
+      anonymous,
+      images: imageUrls
+    };
+
+    // Set reportedBy if user is authenticated (even if anonymous, so they can see it in their history)
+    if (req.user) {
+      console.log('Linking issue to user:', req.user.id, 'Anonymous:', anonymous);
+      issueData.reportedBy = req.user.id;
+    } else {
+      console.log('No user found in request during issue creation - Issue will be unlinked');
+    }
+
+    console.log('Saving issue to database:', issueData);
+
+    const issue = new Issue(issueData);
+    await issue.save();
+
+    console.log('Issue saved successfully:', issue._id);
+
+    // Populate reporter info if available
+    if (issue.reportedBy) {
+      await issue.populate('reportedBy', 'name email');
+    }
+
+    // Format response for frontend compatibility
+    const formattedIssue = {
+      _id: issue._id,
+      id: issue._id,
+      title: issue.title,
+      description: issue.description,
+      category: issue.category,
+      status: issue.status,
+      severity: issue.severity,
+      location: {
+        lat: issue.location.coordinates[1],
+        lng: issue.location.coordinates[0],
+        address: issue.location.address
+      },
+      createdAt: issue.createdAt,
+      updatedAt: issue.updatedAt,
+      images: issue.images,
+      anonymous: issue.anonymous,
+      reporter: issue.reportedBy ? {
+        name: issue.reportedBy.name,
+        email: issue.reportedBy.email
+      } : { name: 'Anonymous', email: null },
+      voteCount: issue.voteCount || 0,
+      upvotes: 0,
+      downvotes: 0,
+      commentCount: issue.commentCount || 0,
+      comments: [],
+      flags: [],
+      followers: 0
+    };
+
+    res.status(201).json({
+      success: true,
+      message: 'Issue created successfully',
+      data: formattedIssue
+    });
+  } catch (error) {
+    console.error('Create issue error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while creating issue',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// @desc    Update issue
+// @route   PUT /api/issues/:id
+// @access  Private (owner or admin)
+router.put('/:id', protect, async (req, res) => {
+  try {
+    const issue = await Issue.findById(req.params.id);
+
+    if (!issue) {
+      return res.status(404).json({
+        success: false,
+        message: 'Issue not found'
+      });
+    }
+
+    // Check if user is owner or admin
+    if (issue.reportedBy && issue.reportedBy.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to update this issue'
+      });
+    }
+
+    const {
+      title,
+      description,
+      category,
+      severity,
+      status,
+      location,
+      images
+    } = req.body;
+
+    const updateData = {};
+    if (title) updateData.title = title;
+    if (description) updateData.description = description;
+    if (category) updateData.category = category;
+    if (severity) updateData.severity = severity;
+    if (status) updateData.status = status;
+    if (images) updateData.images = images;
+
+    // Handle location update with proper format
+    if (location) {
+      updateData.location = {
+        type: 'Point',
+        coordinates: [location.lng, location.lat],
+        address: location.address || ''
+      };
+    }
+
+    const updatedIssue = await Issue.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('reportedBy', 'name email');
+
+    // Create notification if status changed
+    if (status && status !== issue.status && issue.reportedBy) {
+      try {
+        await Notification.create({
+          userId: issue.reportedBy,
+          type: 'update',
+          title: 'Issue Status Updated',
+          message: `Your issue "${issue.title}" is now ${status.replace('_', ' ')}`,
+          issueId: issue._id,
+          icon: 'update',
+          priority: 'high'
+        });
+      } catch (err) { console.error('Notification error:', err); }
+    }
+
+    res.json({
+      success: true,
+      message: 'Issue updated successfully',
+      data: updatedIssue
+    });
+  } catch (error) {
+    console.error('Update issue error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @desc    Delete issue
+// @route   DELETE /api/issues/:id
+// @access  Private (owner or admin)
+router.delete('/:id', protect, async (req, res) => {
+  try {
+    const issue = await Issue.findById(req.params.id);
+
+    if (!issue) {
+      return res.status(404).json({
+        success: false,
+        message: 'Issue not found'
+      });
+    }
+
+    // Check if user is owner or admin
+    if (issue.reportedBy && issue.reportedBy.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this issue'
+      });
+    }
+
+    // Soft delete
+    issue.isActive = false;
+    await issue.save();
+
+    res.json({
+      success: true,
+      message: 'Issue deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete issue error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @desc    Add comment to issue
+// @route   POST /api/issues/:id/comments
+// @access  Private
+router.post('/:id/comments', [
+  protect,
+  body('text', 'Comment text is required').notEmpty().trim().isLength({ max: 500 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: errors.array()
+      });
+    }
+
+    const issue = await Issue.findById(req.params.id);
+
+    if (!issue) {
+      return res.status(404).json({
+        success: false,
+        message: 'Issue not found'
+      });
+    }
+
+    await issue.addComment(req.user.id, req.body.text);
+
+    await issue.populate('comments.user', 'name email');
+
+    // Create notification for reporter
+    if (issue.reportedBy && issue.reportedBy.toString() !== req.user.id) {
+      try {
+        await Notification.create({
+          userId: issue.reportedBy,
+          type: 'comment',
+          title: 'New Comment',
+          message: `${req.user.name} commented on: "${issue.title}"`,
+          issueId: issue._id,
+          icon: 'comment'
+        });
+      } catch (err) { console.error('Notification error:', err); }
+    }
+
+    res.json({
+      success: true,
+      message: 'Comment added successfully',
+      data: issue.comments && Array.isArray(issue.comments) ? issue.comments[issue.comments.length - 1] : null
+    });
+  } catch (error) {
+    console.error('Add comment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @desc    Vote on issue
+// @route   POST /api/issues/:id/vote
+// @access  Private
+router.post('/:id/vote', [
+  protect,
+  body('voteType', 'Vote type is required').isIn(['upvote', 'downvote'])
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: errors.array()
+      });
+    }
+
+    const issue = await Issue.findById(req.params.id);
+
+    if (!issue) {
+      return res.status(404).json({
+        success: false,
+        message: 'Issue not found'
+      });
+    }
+
+    await issue.vote(req.user.id, req.body.voteType);
+
+    // Create notification for upvote
+    if (req.body.voteType === 'upvote' && issue.reportedBy && issue.reportedBy.toString() !== req.user.id) {
+      try {
+        // Check if already notified recently (optional, skipping for now)
+        await Notification.create({
+          userId: issue.reportedBy,
+          type: 'vote',
+          title: 'New Upvote',
+          message: `${req.user.name} upvoted your issue: "${issue.title}"`,
+          issueId: issue._id,
+          icon: 'vote'
+        });
+      } catch (err) { console.error('Notification error:', err); }
+    }
+
+    res.json({
+      success: true,
+      message: 'Vote recorded successfully',
+      data: {
+        voteCount: issue.voteCount,
+        upvotes: (issue.upvotes && Array.isArray(issue.upvotes)) ? issue.upvotes.length : 0,
+        downvotes: (issue.downvotes && Array.isArray(issue.downvotes)) ? issue.downvotes.length : 0
+      }
+    });
+  } catch (error) {
+    console.error('Vote error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @desc    Get issue statistics
+// @route   GET /api/issues/stats/overview
+// @access  Public
+router.get('/stats/overview', async (req, res) => {
+  try {
+    const stats = await Issue.aggregate([
+      { $match: { isActive: true } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          reported: {
+            $sum: { $cond: [{ $eq: ['$status', 'reported'] }, 1, 0] }
+          },
+          inProgress: {
+            $sum: { $cond: [{ $eq: ['$status', 'in_progress'] }, 1, 0] }
+          },
+          resolved: {
+            $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] }
+          },
+          totalVotes: {
+            $sum: { $subtract: [{ $size: '$upvotes' }, { $size: '$downvotes' }] }
+          },
+          totalComments: { $sum: { $size: '$comments' } }
+        }
+      }
+    ]);
+
+    const categoryStats = await Issue.aggregate([
+      { $match: { isActive: true } },
+      {
+        $group: {
+          _id: '$category',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        overview: stats[0] || {
+          total: 0,
+          reported: 0,
+          inProgress: 0,
+          resolved: 0,
+          totalVotes: 0,
+          totalComments: 0
+        },
+        categories: categoryStats
+      }
+    });
+  } catch (error) {
+    console.error('Get stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+module.exports = router;
