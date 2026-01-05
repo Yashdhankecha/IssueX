@@ -505,6 +505,15 @@ const AdminDashboard = () => {
                                 issue.status === 'in_progress' ? 'bg-blue-500' : 'bg-amber-500' 
                               }`} />
 
+                              {/* Delete Action - Floating Top Right */}
+                              <button 
+                                  onClick={(e) => { e.stopPropagation(); deleteIssue(issue._id); }} 
+                                  className="absolute top-3 right-3 z-20 p-2 bg-white text-red-500 rounded-full shadow-md hover:bg-red-50 transition-all border border-red-100"
+                                  title="Delete Issue"
+                              >
+                                  <Trash2 size={16} />
+                              </button>
+
                               {/* Image Thumbnail */}
                               {issue.images && issue.images.length > 0 && (
                                 <div className="h-48 w-full overflow-hidden relative">
@@ -518,17 +527,7 @@ const AdminDashboard = () => {
                               )}
 
                               <div className="p-5 flex flex-col gap-4 flex-1">
-                                <div className="flex justify-between items-start">
                                     <StatusBadge status={issue.status} />
-                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); deleteIssue(issue._id); }} 
-                                            className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
-                                    </div>
-                                </div>
                                 
                                 <div className="space-y-2">
                                     <h3 className="font-bold text-slate-900 leading-snug text-lg line-clamp-2 group-hover:text-indigo-600 transition-colors">
@@ -700,7 +699,7 @@ const AdminDashboard = () => {
                    initial={{ y: '100%' }} 
                    animate={{ y: 0 }} 
                    exit={{ y: '100%' }}
-                   className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-[2rem] p-6 shadow-2xl space-y-6 max-h-[85vh] overflow-y-auto"
+                   className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-[2rem] p-6 pb-32 shadow-2xl space-y-6 max-h-[85dvh] overflow-y-auto"
                    onClick={e => e.stopPropagation()}
                 >
                     <div className="flex justify-between items-center">
@@ -739,7 +738,7 @@ const AdminDashboard = () => {
 
                     <div className="pt-6 border-t border-slate-100">
                         <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Update Status</div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <button 
                                 onClick={() => { updateIssueStatus(selectedIssue._id, 'in_progress'); setShowIssueModal(false); }}
                                 className="py-3.5 rounded-xl bg-amber-50 text-amber-700 font-bold text-sm hover:bg-amber-100 transition-colors flex items-center justify-center gap-2"
