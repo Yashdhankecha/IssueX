@@ -14,7 +14,7 @@
 
 <br />
 
-### [🔴 VIEW LIVE DEMO](https://issuex-civic.netlify.app)
+### [🔴 VIEW LIVE DEMO](https://issuex.netlify.app/)
 *(Note: Link is a placeholder, deploy to activate)*
 
 <br />

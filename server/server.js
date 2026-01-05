@@ -105,14 +105,7 @@ app.get('/api/geocode/reverse', async (req, res) => {
 });
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    message: 'IssueX Server is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    renderUrl: process.env.RENDER_EXTERNAL_URL || 'Not set'
-  })
+  res.status(200).json({ success: true });
 })
 
 // Test endpoint for location queries
@@ -135,12 +128,22 @@ app.get('/api/test/location', (req, res) => {
 // Error handling middleware
 app.use(errorHandler)
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Route not found'
-  })
-})
+// Serve static assets in production
+if (process.env.NODE_ENV === 'production') {
+  // Set static folder
+  app.use(express.static(path.join(__dirname, '../client/dist')));
+
+  app.get('*', (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../client', 'dist', 'index.html'));
+  });
+} else {
+  // 404 handler for development
+  app.use('*', (req, res) => {
+    res.status(404).json({
+      error: 'Route not found'
+    });
+  });
+}
 
 // Database connection - Using local MongoDB for FixIt
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/issuex'

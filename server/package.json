@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "dev:mock": "node server-mock.js",
     "dev:persistent": "nodemon server-persistent.js",
-    "seed": "node seedData.js"
+    "seed": "node seedData.js",
+    "build-client": "cd ../client && npm install && npm run build"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

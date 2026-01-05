@@ -102,10 +102,9 @@ api.interceptors.response.use(
 api.checkServerHealth = async () => {
   try {
     const response = await api.get('/api/health');
-    return response.data;
+    return response.data.success === true;
   } catch (error) {
-    console.error('Server health check failed:', error);
-    return null;
+    return false;
   }
 };
 
