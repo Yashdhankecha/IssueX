@@ -3,7 +3,7 @@ import axios from 'axios';
 // Create axios instance with default configuration
 const api = axios.create({
   baseURL: process.env.NODE_ENV === 'production'
-    ? process.env.VITE_APP_API_URL || 'https://your-render-service.onrender.com'
+    ? (import.meta.env.VITE_APP_API_URL || 'https://issuex-server.onrender.com') // Use Env var first
     : 'http://localhost:5000',
   timeout: 15000, // Increased timeout
   headers: {
