@@ -112,7 +112,7 @@ const Navbar = ({ onMenuClick }) => {
                 <div className="w-8 h-8 rounded-xl overflow-hidden shadow-lg border border-slate-200">
                   {user?.profilePicture ? (
                     <img 
-                      src={user.profilePicture.startsWith('http') ? user.profilePicture : `http://localhost:5000${user.profilePicture}`} 
+                      src={user.profilePicture.startsWith('http') ? user.profilePicture : `${import.meta.env.VITE_APP_API_URL || 'http://localhost:5000'}${user.profilePicture}`} 
                       alt="Profile" 
                       className="w-full h-full object-cover"
                     />
@@ -186,8 +186,15 @@ const Navbar = ({ onMenuClick }) => {
                             </span>
                           )}
                         </Link>
-                        
 
+                        <Link
+                          to="/settings"
+                          className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 transition-all duration-200"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <Settings size={16} />
+                          <span>Settings</span>
+                        </Link>
                       </>
                     )}
                     

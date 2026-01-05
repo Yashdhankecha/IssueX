@@ -119,7 +119,7 @@ const ProfilePage = () => {
                         <div className="w-32 h-32 md:w-40 md:h-40 rounded-[2rem] border-4 border-white shadow-2xl overflow-hidden bg-white relative z-10 transition-transform hover:scale-105">
                             {user?.profilePicture ? (
                                 <img 
-                                    src={user.profilePicture.startsWith('http') ? user.profilePicture : `http://localhost:5000${user.profilePicture}`} 
+                                    src={user.profilePicture.startsWith('http') ? user.profilePicture : `${import.meta.env.VITE_APP_API_URL || 'http://localhost:5000'}${user.profilePicture}`} 
                                     className="w-full h-full object-cover" 
                                     alt="Profile" 
                                 />
@@ -218,8 +218,8 @@ const ProfilePage = () => {
                     ) : userIssues.length > 0 ? (
                         userIssues.map(issue => (
                             <Link to={`/issue/${issue._id || issue.id}`} key={issue._id || issue.id} className="block group">
-                                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all flex gap-4 items-center">
-                                    <div className="w-16 h-16 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0">
+                                <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all flex gap-3 items-start sm:items-center">
+                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 mt-1 sm:mt-0">
                                         {issue.images?.[0] ? (
                                             <img src={issue.images[0]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="" />
                                         ) : (
@@ -227,17 +227,19 @@ const ProfilePage = () => {
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className={`w-2 h-2 rounded-full ${issue.status === 'resolved' ? 'bg-green-500' : issue.status === 'in_progress' ? 'bg-amber-500' : 'bg-red-500'}`} />
-                                            <span className="text-xs font-bold uppercase text-slate-400 tracking-wide">{issue.status.replace('_', ' ')}</span>
-                                            <span className="text-slate-300">•</span>
-                                            <span className="text-xs text-slate-400 font-medium">{formatDistanceToNow(new Date(issue.createdAt))} ago</span>
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${issue.status === 'resolved' ? 'bg-green-500' : issue.status === 'in_progress' ? 'bg-amber-500' : 'bg-red-500'}`} />
+                                                <span className="text-[10px] sm:text-xs font-bold uppercase text-slate-400 tracking-wide">{issue.status.replace('_', ' ')}</span>
+                                            </div>
+                                            <span className="text-slate-300 text-[10px] sm:text-xs">•</span>
+                                            <span className="text-[10px] sm:text-xs text-slate-400 font-medium truncate max-w-[120px] sm:max-w-none">{formatDistanceToNow(new Date(issue.createdAt))} ago</span>
                                         </div>
-                                        <h3 className="font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">{issue.title}</h3>
-                                        <p className="text-sm text-slate-500 truncate">{issue.description}</p>
+                                        <h3 className="font-bold text-slate-900 line-clamp-1 sm:line-clamp-2 group-hover:text-blue-600 transition-colors text-sm sm:text-base">{issue.title}</h3>
+                                        <p className="text-xs sm:text-sm text-slate-500 line-clamp-1">{issue.description}</p>
                                     </div>
-                                    <div className="pr-2 text-slate-300 group-hover:translate-x-1 group-hover:text-blue-500 transition-all">
-                                        <ArrowRight size={20} />
+                                    <div className="self-center pr-1 text-slate-300 group-hover:translate-x-1 group-hover:text-blue-500 transition-all">
+                                        <ArrowRight size={16} className="sm:w-5 sm:h-5" />
                                     </div>
                                 </div>
                             </Link>
