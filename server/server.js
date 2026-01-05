@@ -25,7 +25,8 @@ app.use(helmet())
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
     ? [
-      process.env.FRONTEND_URL || 'https://your-fixit-app.netlify.app',
+      process.env.FRONTEND_URL || 'https://issuex-app.netlify.app',
+      'https://issuex.netlify.app',
       'https://your-custom-domain.com'
     ]
     : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://localhost:5173', 'http://127.0.0.1:5173'],
