@@ -130,7 +130,7 @@ Visit `http://localhost:5173` and start reporting!
 
 | **AI Auto-Analysis** | **Interactive Map** |
 | :---: | :---: |
-| ![AI Analysis](https://images.unsplash.com/photo-1621255364867-cc894950e396?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTJ8fGFpciUyMHNjYW58ZW58MHx8MHx8fDA%3D) | ![Map View](https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8bWFwfGVufDB8fDB8fHww) |
+| ![AI Analysis](./client/public/pics/ai_report.png) | ![Map View](./client/public/pics/map_view.png) |
 | *Gemini scans and fills details automatically* | *Visualizing issues across the city* |
 
 ---
