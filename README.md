@@ -79,7 +79,7 @@ Want to run this locally? Follow these steps:
 ### 1. Clone & Install
 ```bash
 git clone https://github.com/yashdhankecha/issuex.git
-cd IssueX by
+cd issuex by
 
 # Install Backend
 cd server
