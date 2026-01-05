@@ -7,6 +7,68 @@ const { protect, optionalAuth } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 const mongoose = require('mongoose');
 const { upload } = require('../config/cloudinary');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
+
+// Initialize Gemini AI (Graceful fallback if no key)
+const genAI = process.env.GEMINI_API_KEY
+  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  : null;
+
+// Helper: Geocode Coordinates to Address
+const getAddressFromCoords = async (lat, lng) => {
+  if (!process.env.GOOGLE_MAPS_API_KEY) return null;
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+    const res = await axios.get(url);
+    if (res.data.status === 'OK' && res.data.results.length > 0) {
+      return res.data.results[0].formatted_address;
+    }
+  } catch (error) {
+    console.error('Geocoding Error:', error.message);
+  }
+  return null;
+};
+
+// Helper: Analyze Image with Gemini
+const analyzeImageWithGemini = async (imageUrl) => {
+  if (!genAI) return null;
+  try {
+    // 1. Download image buffer
+    const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+    const buffer = Buffer.from(response.data);
+    const base64Image = buffer.toString('base64');
+    const mimeType = response.headers['content-type'] || 'image/jpeg';
+
+    // 2. Prepare Model & Prompt
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+    const prompt = `
+      Analyze this image of a civic issue (like a pothole, garbage, broken street light, etc).
+      Return ONLY a raw JSON object (no markdown) with the following fields:
+      - "title": Short, precise title (e.g. "Deep Pothole on Main St")
+      - "description": clear description of the issue (2 sentences max)
+      - "category": Best match from [roads, lighting, water, cleanliness, safety, obstructions]
+      - "severity": [low, medium, high, critical]
+      - "tags": Array of 3-5 short descriptive tags (e.g. "large pothole", "flooding", "exposed wire")
+      - "is_relevant": Boolean (true if it looks like a civic issue)
+    `;
+
+    // 3. Generate Content
+    const result = await model.generateContent([
+      prompt,
+      { inlineData: { data: base64Image, mimeType } }
+    ]);
+
+    const text = result.response.text();
+    // Clean markdown code blocks if present
+    const jsonStr = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(jsonStr);
+
+  } catch (error) {
+    console.error('Gemini Analysis Error:', error.message);
+    return null;
+  }
+};
 
 // Middleware to check if MongoDB is connected
 const checkMongoDB = (req, res, next) => {
@@ -447,6 +509,43 @@ router.post('/', [
       });
     }
 
+    // --- GOOGLE FEATURES INTEGRATION ---
+
+    // 1. Geocoding: Auto-fill address if missing
+    if (!location.address || location.address.trim() === '' || location.address.includes('Lat:')) {
+      console.log('Fetching address from Google Maps...');
+      const fetchedAddress = await getAddressFromCoords(location.lat, location.lng);
+      if (fetchedAddress) {
+        console.log('Address found:', fetchedAddress);
+        location.address = fetchedAddress;
+      }
+    }
+
+    // 2. Gemini AI: Smart Analysis
+    let aiTags = [];
+    if (imageUrls.length > 0) {
+      console.log('Analyzing image with Gemini AI...');
+      const aiResult = await analyzeImageWithGemini(imageUrls[0]);
+
+      if (aiResult && aiResult.is_relevant) {
+        console.log('Gemini Result:', aiResult);
+
+        // Auto-enhance data
+        if (aiResult.tags && Array.isArray(aiResult.tags)) {
+          aiTags = [...aiResult.tags, 'verified-by-ai'];
+        }
+
+        // If user set severity to default 'medium', let AI refine it
+        if (severity === 'medium' && aiResult.severity) {
+          severity = aiResult.severity;
+        }
+
+        // Note: We don't override category as user intent is primary, 
+        // but we could use it for verification flags later.
+      }
+    }
+    // -----------------------------------
+
     // Prepare issue data with proper MongoDB geospatial format
     const issueData = {
       title,
@@ -459,7 +558,8 @@ router.post('/', [
         address: location.address || ''
       },
       anonymous,
-      images: imageUrls
+      images: imageUrls,
+      tags: aiTags // Add AI generated tags
     };
 
     // Set reportedBy if user is authenticated (even if anonymous, so they can see it in their history)
@@ -829,6 +929,42 @@ router.get('/stats/overview', async (req, res) => {
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  }
+});
+
+// @desc    Analyze image using Gemini AI (New Route)
+// @route   POST /api/issues/analyze-image
+// @access  Public
+router.post('/analyze-image', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No image uploaded' });
+    }
+
+    console.log('Analyzing image:', req.file.path);
+    const analysis = await analyzeImageWithGemini(req.file.path);
+
+    if (!analysis) {
+      // Fallback if AI fails
+      return res.json({
+        success: true,
+        data: {
+          title: '',
+          description: '',
+          category: 'roads',
+          severity: 'medium',
+          tags: []
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: analysis
+    });
+  } catch (error) {
+    console.error('Analyze image error:', error);
+    res.status(500).json({ success: false, message: 'Analysis failed' });
   }
 });
 
