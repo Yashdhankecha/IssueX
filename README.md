@@ -78,8 +78,8 @@ Want to run this locally? Follow these steps:
 
 ### 1. Clone & Install
 ```bash
-git clone https://github.com/your-username/IssueX.git
-cd IssueX
+git clone https://github.com/yashdhankecha/issuex.git
+cd issuex by
 
 # Install Backend
 cd server
