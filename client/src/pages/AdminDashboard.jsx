@@ -738,7 +738,7 @@ const AdminDashboard = () => {
 
                     <div className="pt-6 border-t border-slate-100">
                         <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Update Status</div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
                             <button 
                                 onClick={() => { updateIssueStatus(selectedIssue._id, 'in_progress'); setShowIssueModal(false); }}
                                 className="py-3.5 rounded-xl bg-amber-50 text-amber-700 font-bold text-sm hover:bg-amber-100 transition-colors flex items-center justify-center gap-2"

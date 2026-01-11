@@ -137,7 +137,7 @@ Visit `http://localhost:5173` and start reporting!
 
 <div align="center">
   
-**Made with ❤️ for GDGC (Google Developer Groups on Campus) BY YASH DHANKECHA**
+**Made with ❤️ BY Tripod**
 
 [Star this Repo ⭐](#) • [Report Bug 🐛](#)
 

@@ -5,7 +5,7 @@ const api = axios.create({
   baseURL: process.env.NODE_ENV === 'production'
     ? (import.meta.env.VITE_APP_API_URL || 'https://issuex-server.onrender.com') // Use Env var first
     : 'http://localhost:5000',
-  timeout: 15000, // Increased timeout
+  timeout: 30000, // Increased timeout for Render cold starts
   headers: {
     'Content-Type': 'application/json',
   },
