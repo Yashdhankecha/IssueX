@@ -527,7 +527,28 @@ router.post('/', [
       console.log('Analyzing image with Gemini AI...');
       const aiResult = await analyzeImageWithGemini(imageUrls[0]);
 
-      if (aiResult && aiResult.is_relevant) {
+      if (aiResult) {
+        // STRICT PROHIBITION: Check relevance
+        if (aiResult.is_relevant === false) {
+          console.log('Creating issue blocked: Image not relevant');
+          // Delete uploaded image to clean up
+          // (Assuming Cloudinary handles cleanup or we leave it for now)
+          return res.status(400).json({
+            success: false,
+            message: 'Submission rejected: No valid civic issue detected in the image.'
+          });
+        }
+
+        // STRICT PROHIBITION: Check category
+        const validCategories = ['roads', 'lighting', 'water', 'cleanliness', 'safety', 'obstructions'];
+        if (aiResult.category && !validCategories.includes(aiResult.category)) {
+          console.log('Creating issue blocked: Invalid category', aiResult.category);
+          return res.status(400).json({
+            success: false,
+            message: 'Submission rejected: Issue type not supported.'
+          });
+        }
+
         console.log('Gemini Result:', aiResult);
 
         // Auto-enhance data
@@ -539,9 +560,6 @@ router.post('/', [
         if (severity === 'medium' && aiResult.severity) {
           severity = aiResult.severity;
         }
-
-        // Note: We don't override category as user intent is primary, 
-        // but we could use it for verification flags later.
       }
     }
     // -----------------------------------

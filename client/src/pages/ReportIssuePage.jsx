@@ -80,6 +80,28 @@ const ReportIssuePage = () => {
 
       if (response.data.success) {
         const data = response.data.data;
+
+        // CHECK: is relevant?
+        if (data.is_relevant === false) {
+           toast.error('No civic issue detected in this image. Please upload a valid issue photo.', { 
+             icon: '🚫',
+             duration: 4000
+           });
+           setStep('upload');
+           return;
+        }
+
+        // CHECK: proper issue type
+        const validCategories = categories.map(c => c.value);
+        if (data.category && !validCategories.includes(data.category)) {
+          toast.error('Issue not belongs to any listed issue/department', { 
+            icon: '🚫',
+            duration: 4000
+          });
+          setStep('upload');
+          return;
+        }
+
         setAiData(data);
         // Pre-fill form
         setValue('title', data.title);

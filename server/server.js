@@ -86,10 +86,6 @@ app.get('/api/geocode/reverse', async (req, res) => {
       return res.status(400).json({ error: 'Latitude and longitude required' });
     }
 
-    // We need axios or node-fetch. Since axios is likely used elsewhere or we can use dynamic import for node-fetch
-    // Let's assume axios is available as it's a common dependency. 
-    // If not, we'll install it or use http/https module.
-    // Check package.json? No, just try to require it, if it fails user will see error.
     const axios = require('axios');
 
     const response = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
@@ -98,7 +94,29 @@ app.get('/api/geocode/reverse', async (req, res) => {
       }
     });
 
-    res.json(response.data);
+    const data = response.data;
+    const addr = data.address || {};
+
+    // Construct a more detailed address
+    // Priority: Road/Street -> Suburb/Neighborhood -> City/Town -> State -> Postcode
+    const addressParts = [
+      addr.road || addr.pedestrian || addr.footway || addr.path,
+      addr.suburb || addr.neighbourhood || addr.residential,
+      addr.city || addr.town || addr.village || addr.hamlet || addr.municipality,
+      addr.state || addr.province,
+      addr.postcode
+    ].filter(Boolean); // Remove null/undefined/empty strings
+
+    const formattedAddress = addressParts.join(', ');
+
+    res.json({
+      success: true,
+      data: {
+        address: formattedAddress || data.display_name, // Fallback to display_name if construction fails
+        raw: data
+      }
+    });
+
   } catch (error) {
     console.error('Geocode proxy error:', error.message);
     res.status(500).json({ error: 'Geocoding service unavailable' });

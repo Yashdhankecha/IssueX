@@ -23,6 +23,7 @@ const storage = new CloudinaryStorage({
         transformation: [{ width: 1000, height: 1000, crop: 'limit' }]
     }
 });
+console.log('✅ Cloudinary Storage Initialized');
 
 const upload = multer({ storage: storage });
 
