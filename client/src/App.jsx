@@ -24,6 +24,10 @@ import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import NotificationPage from './pages/NotificationPage';
 import AdminDashboard from './pages/AdminDashboard';
+import GovDashboard from './pages/GovDashboard';
+import ManagerDashboard from './pages/ManagerDashboard';
+import WorkerDashboard from './pages/WorkerDashboard';
+
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import EmailVerificationPage from './pages/EmailVerificationPage';
@@ -31,6 +35,11 @@ import OnboardingPage from './pages/OnboardingPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import GovIssuesPage from './pages/GovIssuesPage';
+import GovMapPage from './pages/GovMapPage';
+import GovProfilePage from './pages/GovProfilePage';
+import GovNotificationPage from './pages/GovNotificationPage';
+import GamificationPage from './pages/GamificationPage';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -108,6 +117,63 @@ function App() {
                         </Layout>
                       </ProtectedRoute>
                     } />
+
+                    {/* Government Routes */}
+                    <Route path="/gov-dashboard" element={
+                      <ProtectedRoute govOnly>
+                        <Layout>
+                          <GovDashboard />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/gov-issues" element={
+                      <ProtectedRoute govOnly>
+                        <Layout>
+                          <GovIssuesPage />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+                     <Route path="/gov-map" element={
+                      <ProtectedRoute govOnly>
+                        <Layout>
+                          <GovMapPage />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/gov-notifications" element={
+                      <ProtectedRoute govOnly>
+                        <Layout>
+                          <GovNotificationPage />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+                     <Route path="/gov-profile" element={
+                      <ProtectedRoute govOnly>
+                        <Layout>
+                          <GovProfilePage />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    {/* Manager Routes */}
+                    <Route path="/manager-dashboard" element={
+                      <ProtectedRoute managerOnly>
+                        <Layout>
+                          <ManagerDashboard />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    {/* Worker Routes */}
+                    <Route path="/worker-dashboard" element={
+                      <ProtectedRoute workerOnly>
+                        <Layout>
+                          <WorkerDashboard />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+
                     
                     {/* User Routes - Only accessible to non-admin users */}
                     <Route path="/dashboard" element={
@@ -143,7 +209,7 @@ function App() {
                     } />
                     
                     <Route path="/profile" element={
-                      <ProtectedRoute userOnly>
+                      <ProtectedRoute>
                         <Layout>
                           <ProfilePage />
                         </Layout>
@@ -151,7 +217,7 @@ function App() {
                     } />
                     
                     <Route path="/notifications" element={
-                      <ProtectedRoute userOnly>
+                      <ProtectedRoute>
                         <Layout>
                           <NotificationPage />
                         </Layout>
@@ -159,9 +225,17 @@ function App() {
                     } />
                     
                     <Route path="/settings" element={
-                      <ProtectedRoute userOnly>
+                      <ProtectedRoute>
                         <Layout>
                           <SettingsPage />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/impact" element={
+                      <ProtectedRoute userOnly>
+                        <Layout>
+                          <GamificationPage />
                         </Layout>
                       </ProtectedRoute>
                     } />
