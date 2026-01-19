@@ -43,6 +43,24 @@ const IssueDetailPage = () => {
         userVote: null
     });
 
+    const [localIssue, setLocalIssue] = useState(null);
+
+    // Fetch fresh issue data on mount to ensure we have the latest resolutionImage
+    useEffect(() => {
+        const fetchIssueDetails = async () => {
+            if (!id) return;
+            try {
+                const res = await api.get(`/api/issues/${id}`);
+                if (res.data.success) {
+                   setLocalIssue(res.data.data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch fresh issue:", err);
+            }
+        };
+        fetchIssueDetails();
+    }, [id]);
+
     // Initialize local vote data when issue loads
     useEffect(() => {
         if (issue) {
@@ -294,7 +312,7 @@ const IssueDetailPage = () => {
                     </div>
 
                     {/* Verification Section (Full Width or placed in Right Col) */}
-                    {issue.status === 'resolved' && (user?._id === issue.reporter?._id || user?.role === 'admin') && (
+                    {(localIssue?.status === 'resolved' || issue.status === 'resolved') && (user?._id === (localIssue?.reporter?._id || issue.reporter?._id) || user?.role === 'admin') && (
                         <div className="md:col-span-12 bg-green-50 border border-green-200 rounded-3xl p-6 md:p-8 mb-8">
                             <div className="flex flex-col md:flex-row items-center gap-8">
                                 <div className="flex-1 space-y-4 text-center md:text-left">
@@ -341,12 +359,16 @@ const IssueDetailPage = () => {
                                     <div className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center shrink-0 z-10 -ml-6 -mr-6">
                                         <CheckCircle size={20} className="text-green-500" />
                                     </div>
-                                    <div className="w-32 md:w-48 aspect-square rounded-2xl overflow-hidden border-4 border-green-400 shadow-xl relative">
-                                        <img src={issue.resolutionImage || issue.images?.[0]} className="w-full h-full object-cover" alt="After" />
+                                    <div className="w-32 md:w-48 aspect-square rounded-2xl overflow-hidden border-4 border-green-400 shadow-xl relative bg-slate-100 flex items-center justify-center">
+                                        {(localIssue?.resolutionImage || (issue && issue.resolutionImage)) ? (
+                                            <img src={localIssue?.resolutionImage || issue.resolutionImage} className="w-full h-full object-cover" alt="After" />
+                                        ) : (
+                                           <div className="text-xs text-slate-400 font-medium p-2 text-center">No Image Available</div>
+                                        )}
                                         <div className="absolute bottom-2 left-2 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded">AFTER</div>
-                                        {issue.aiResolutionScore && (
+                                        {(localIssue?.aiResolutionScore || issue?.aiResolutionScore) && (
                                             <div className="absolute top-2 right-2 bg-white/90 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                                                AI Match {issue.aiResolutionScore}%
+                                                AI Match {localIssue?.aiResolutionScore || issue.aiResolutionScore}%
                                             </div>
                                         )}
                                     </div>

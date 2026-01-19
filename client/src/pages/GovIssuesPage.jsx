@@ -155,7 +155,8 @@ const GovIssuesPage = () => {
 
     try {
       const res = await api.put(endpoint, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000 // Increase timeout to 2 minutes for AI analysis
       });
 
       if (res.data.success) {
@@ -170,7 +171,8 @@ const GovIssuesPage = () => {
       }
     } catch (error) {
       console.error(error);
-      toast.error('Action failed. Try again.');
+      const errorMsg = error.response?.data?.message || 'Action failed. Try again.';
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -191,7 +193,7 @@ const GovIssuesPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 pb-24">
+    <div className="min-h-screen bg-slate-50 p-6 pb-32">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-2xl font-bold text-slate-900 mb-6">Manage Issues</h1>
 
@@ -313,7 +315,7 @@ const GovIssuesPage = () => {
       {/* Action Modal */}
       <AnimatePresence>
         {showAssignModal && selectedIssue && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
               <motion.div 
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -379,7 +381,7 @@ const GovIssuesPage = () => {
         )}
 
         {selectedIssue && !showAssignModal && (
-          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/50 backdrop-blur-sm"
