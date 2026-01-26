@@ -97,6 +97,8 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [showIssueModal, setShowIssueModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showUserModal, setShowUserModal] = useState(false);
   const [userFilter, setUserFilter] = useState('all');
   
   // Pagination States
@@ -227,13 +229,21 @@ const AdminDashboard = () => {
       }
   };
 
-  const updateUserStatus = async (userId, updates) => {
+  const handleUserUpdate = async (e) => {
+    e.preventDefault();
+    if (!selectedUser) return;
     try {
-      await api.patch(`/api/admin/users/${userId}`, updates);
-      toast.success('User updated');
-      fetchUsers();
-    } catch (e) {
-      toast.error('Failed to update user');
+        const updates = {
+            role: selectedUser.role,
+            department: selectedUser.role === 'government' ? selectedUser.department : undefined,
+            isActive: selectedUser.isActive
+        };
+        await api.patch(`/api/admin/users/${selectedUser._id}`, updates);
+        toast.success('User updated successfully');
+        setShowUserModal(false);
+        fetchUsers();
+    } catch (error) {
+        toast.error('Failed to update user');
     }
   };
 
@@ -642,11 +652,11 @@ const AdminDashboard = () => {
                               
                               <div className="flex items-center gap-2 justify-end border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-50 mt-2 sm:mt-0">
                                   <button 
-                                    onClick={() => updateUserStatus(u._id, { role: u.role === 'admin' ? 'user' : 'admin' })}
+                                    onClick={() => { setSelectedUser(u); setShowUserModal(true); }}
                                     className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-colors bg-slate-50 sm:bg-transparent"
-                                    title="Toggle Role"
+                                    title="Edit User"
                                   >
-                                      <Shield size={18} />
+                                      <RefreshCw size={18} />
                                   </button>
                                   <button 
                                     onClick={() => deleteUser(u._id)} 
@@ -765,6 +775,85 @@ const AdminDashboard = () => {
                             </button>
                         </div>
                     </div>
+                </motion.div>
+            </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit User Modal */}
+      <AnimatePresence>
+        {showUserModal && selectedUser && (
+            <motion.div 
+               initial={{ opacity: 0 }} 
+               animate={{ opacity: 1 }} 
+               exit={{ opacity: 0 }}
+               className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4"
+               onClick={() => setShowUserModal(false)}
+            >
+                <motion.div 
+                   initial={{ scale: 0.95, opacity: 0 }} 
+                   animate={{ scale: 1, opacity: 1 }} 
+                   exit={{ scale: 0.95, opacity: 0 }}
+                   className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl"
+                   onClick={e => e.stopPropagation()}
+                >
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-slate-900">Edit User</h2>
+                        <button onClick={() => setShowUserModal(false)} className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200"><X size={20} /></button>
+                    </div>
+
+                    <form onSubmit={handleUserUpdate} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Role</label>
+                            <select 
+                                className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                value={selectedUser.role}
+                                onChange={e => setSelectedUser({...selectedUser, role: e.target.value})}
+                            >
+                                <option value="user">User</option>
+                                <option value="admin">Admin</option>
+                                <option value="government">Government Official</option>
+                            </select>
+                        </div>
+
+                        {selectedUser.role === 'government' && (
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Department</label>
+                                <select 
+                                    className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    value={selectedUser.department || ''}
+                                    onChange={e => setSelectedUser({...selectedUser, department: e.target.value})}
+                                    required={selectedUser.role === 'government'}
+                                >
+                                    <option value="">Select Department</option>
+                                    <option value="roads">Roads Department</option>
+                                    <option value="lighting">Lighting Department</option>
+                                    <option value="water">Water Department</option>
+                                    <option value="cleanliness">Sanitation (Cleanliness)</option>
+                                    <option value="safety">Public Safety</option>
+                                    <option value="obstructions">Obstructions</option>
+                                </select>
+                            </div>
+                        )}
+
+                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                             <input 
+                                type="checkbox" 
+                                id="isActive"
+                                checked={selectedUser.isActive !== false}
+                                onChange={e => setSelectedUser({...selectedUser, isActive: e.target.checked})}
+                                className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500"
+                             />
+                             <label htmlFor="isActive" className="text-sm font-bold text-slate-700">Account Active</label>
+                        </div>
+
+                        <button 
+                            type="submit"
+                            className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all mt-4"
+                        >
+                            Save Changes
+                        </button>
+                    </form>
                 </motion.div>
             </motion.div>
         )}

@@ -62,8 +62,13 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['user', 'admin', 'government'],
     default: 'user'
+  },
+  department: {
+    type: String,
+    enum: ['roads', 'lighting', 'water', 'cleanliness', 'safety', 'obstructions'],
+    required: false
   },
   preferences: {
     notifications: {

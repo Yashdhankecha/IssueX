@@ -110,6 +110,29 @@ const issueSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  // --- Resolution Workflow ---
+  workStartedAt: {
+    type: Date
+  },
+  workStartedImage: {
+    type: String
+  },
+  resolvedAt: {
+    type: Date
+  },
+  resolutionImage: {
+    type: String
+  },
+  aiResolutionScore: {
+    type: Number,
+    min: 0,
+    max: 100
+  },
+  resolutionStatus: {
+    type: String,
+    enum: ['pending_review', 'verified', 'rejected', null]
+  },
+  // ---------------------------
   priority: {
     type: String,
     enum: ['low', 'medium', 'high', 'urgent'],

@@ -31,15 +31,27 @@ const Navbar = ({ onMenuClick }) => {
   const { unreadCount } = useNotification();
   const location = useLocation();
 
-  const navigation = isAdmin ? [
-    { name: 'Overview', href: '/admin?tab=overview', icon: BarChart3 },
-    { name: 'Issues', href: '/admin?tab=issues', icon: AlertCircle },
-    { name: 'Users', href: '/admin?tab=users', icon: Users },
-  ] : [
+  const isGovernment = user?.role === 'government';
+
+  let navigation = [
     { name: 'Home', href: '/dashboard', icon: Home },
     { name: 'Map', href: '/map', icon: Map },
     { name: 'Report', href: '/report', icon: Plus },
   ];
+
+  if (isAdmin) {
+    navigation = [
+      { name: 'Overview', href: '/admin?tab=overview', icon: BarChart3 },
+      { name: 'Issues', href: '/admin?tab=issues', icon: AlertCircle },
+      { name: 'Users', href: '/admin?tab=users', icon: Users },
+    ];
+  } else if (isGovernment) {
+    navigation = [
+      { name: 'Dashboard', href: '/gov-dashboard', icon: BarChart3 },
+      { name: 'Issues', href: '/gov-issues', icon: AlertCircle },
+      { name: 'Map', href: '/gov-map', icon: MapPin },
+    ];
+  }
 
   const isActive = (path) => {
     if (path.includes('?')) {
@@ -165,7 +177,7 @@ const Navbar = ({ onMenuClick }) => {
                     ) : (
                       <>
                         <Link
-                          to="/profile"
+                          to={isGovernment ? "/gov-profile" : "/profile"}
                           className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 transition-all duration-200"
                           onClick={() => setUserMenuOpen(false)}
                         >
@@ -174,7 +186,7 @@ const Navbar = ({ onMenuClick }) => {
                         </Link>
                         
                         <Link
-                          to="/notifications"
+                          to={isGovernment ? "/gov-notifications" : "/notifications"}
                           className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 transition-all duration-200"
                           onClick={() => setUserMenuOpen(false)}
                         >
@@ -187,14 +199,16 @@ const Navbar = ({ onMenuClick }) => {
                           )}
                         </Link>
 
-                        <Link
-                          to="/settings"
-                          className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 transition-all duration-200"
-                          onClick={() => setUserMenuOpen(false)}
-                        >
-                          <Settings size={16} />
-                          <span>Settings</span>
-                        </Link>
+                        {!isGovernment && (
+                          <Link
+                            to="/settings"
+                            className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 transition-all duration-200"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <Settings size={16} />
+                            <span>Settings</span>
+                          </Link>
+                        )}
                       </>
                     )}
                     

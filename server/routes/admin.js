@@ -15,14 +15,14 @@ const requireAdmin = async (req, res, next) => {
         message: 'Authentication required'
       });
     }
-    
+
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Admin access required'
       });
     }
-    
+
     next();
   } catch (error) {
     console.error('Admin verification error:', error);
@@ -42,17 +42,17 @@ router.get('/issues', protect, requireAdmin, async (req, res) => {
 
     // Build query
     let query = {};
-    
+
     // Only add status filter if it's provided and not empty
     if (status && status !== '' && status !== 'all') {
       query.status = status;
     }
-    
+
     // Only add category filter if it's provided and not empty
     if (category && category !== '' && category !== 'all') {
       query.category = category;
     }
-    
+
     // Only add search filter if it's provided and not empty
     if (search && search.trim() !== '') {
       query.$or = [
@@ -207,7 +207,7 @@ router.patch('/issues/:id/status', protect, requireAdmin, async (req, res) => {
 router.delete('/issues/:id', protect, requireAdmin, async (req, res) => {
   try {
     const issue = await Issue.findByIdAndDelete(req.params.id);
-    
+
     if (!issue) {
       return res.status(404).json({
         success: false,
@@ -236,15 +236,15 @@ router.get('/users', protect, requireAdmin, async (req, res) => {
 
     // Build query
     let query = {};
-    
+
     if (role && role !== 'all') {
       query.role = role;
     }
-    
+
     if (status && status !== 'all') {
       query.isActive = status === 'active';
     }
-    
+
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -286,7 +286,7 @@ router.get('/users', protect, requireAdmin, async (req, res) => {
 router.get('/user/:id', protect, requireAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('-password');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -325,10 +325,11 @@ router.get('/user/:id', protect, requireAdmin, async (req, res) => {
 // PATCH /api/admin/users/:id - Update user status/role
 router.patch('/users/:id', protect, requireAdmin, async (req, res) => {
   try {
-    const { role, isActive, isEmailVerified } = req.body;
-    
+    const { role, department, isActive, isEmailVerified } = req.body;
+
     const updateData = {};
     if (role) updateData.role = role;
+    if (department) updateData.department = department;
     if (typeof isActive === 'boolean') updateData.isActive = isActive;
     if (typeof isEmailVerified === 'boolean') updateData.isEmailVerified = isEmailVerified;
 
@@ -363,7 +364,7 @@ router.patch('/users/:id', protect, requireAdmin, async (req, res) => {
 router.delete('/users/:id', protect, requireAdmin, async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -401,7 +402,7 @@ router.post('/notifications', protect, requireAdmin, async (req, res) => {
 
     // Get all active users
     const users = await User.find({ isActive: true });
-    
+
     // Create notifications for all users
     const notifications = users.map(user => ({
       userId: user._id,
@@ -445,7 +446,7 @@ router.get('/stats', protect, requireAdmin, async (req, res) => {
     // Recent activity (last 7 days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+
     const recentIssues = await Issue.countDocuments({
       createdAt: { $gte: sevenDaysAgo }
     });
@@ -538,7 +539,7 @@ router.get('/stats', protect, requireAdmin, async (req, res) => {
 router.get('/export', protect, requireAdmin, async (req, res) => {
   try {
     const { type } = req.query;
-    
+
     let data;
     switch (type) {
       case 'issues':

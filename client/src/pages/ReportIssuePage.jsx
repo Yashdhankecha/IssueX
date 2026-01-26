@@ -148,7 +148,7 @@ const ReportIssuePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 relative overflow-hidden flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 relative flex flex-col font-sans">
       {/* Background Blobs */}
       <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-400/10 blur-3xl animate-pulse pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-400/10 blur-3xl animate-pulse pointer-events-none" />
@@ -162,7 +162,7 @@ const ReportIssuePage = () => {
         <div className="w-10" />
       </div>
 
-      <div className="flex-1 w-full max-w-2xl mx-auto px-6 pb-24 relative z-10 flex flex-col justify-center">
+      <div className="flex-1 w-full max-w-[100vw] px-6 pb-24 relative z-10 flex flex-col justify-center box-border">
         <AnimatePresence mode="wait">
           
           {/* STEP 1: UPLOAD */}
@@ -202,9 +202,9 @@ const ReportIssuePage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center text-center h-[60vh]"
+              className="flex flex-col items-center justify-center text-center py-10 w-full px-4 min-h-[50vh]"
             >
-               <div className="relative w-full max-w-sm aspect-square rounded-3xl overflow-hidden shadow-2xl mb-8 border-4 border-white">
+               <div className="relative w-full max-w-[300px] aspect-square rounded-3xl overflow-hidden shadow-2xl mb-8 border-4 border-white mx-auto">
                  <img src={imagePreview} alt="Analyzing" className="w-full h-full object-cover" />
                  {/* Scanner Overlay */}
                  <motion.div 
@@ -218,8 +218,8 @@ const ReportIssuePage = () => {
                     </div>
                  </div>
                </div>
-               <h2 className="text-2xl font-bold text-slate-900 mb-2">Analyzing Image...</h2>
-               <p className="text-slate-500 animate-pulse">Detecting issue type and severity</p>
+               <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-2">Analyzing Image...</h2>
+               <p className="text-sm md:text-base text-slate-500 animate-pulse px-4">Detecting issue type and severity</p>
             </motion.div>
           )}
 
@@ -229,26 +229,26 @@ const ReportIssuePage = () => {
               key="review"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
+              className="w-full space-y-6"
             >
               {/* Image Header */}
-              <div className="relative h-48 rounded-3xl overflow-hidden shadow-lg border border-white">
+              <div className="relative h-48 sm:h-64 rounded-3xl overflow-hidden shadow-lg border border-white w-full">
                 <img src={imagePreview} alt="Issue" className="w-full h-full object-cover" />
                 <div className="absolute top-3 right-3 bg-black/50 backdrop-blur px-3 py-1 rounded-full text-white text-xs font-bold flex items-center gap-1">
                    <Sparkles size={12} className="text-yellow-400" /> AI Generated
                 </div>
                 <button 
                   onClick={() => setStep('upload')} 
-                  className="absolute bottom-3 right-3 p-2 bg-white rounded-full shadow-lg text-slate-900"
+                  className="absolute bottom-3 right-3 p-2 bg-white rounded-full shadow-lg text-slate-900 hover:bg-slate-100 transition-colors"
                 >
                   <Edit3 size={18} />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 w-full">
                 
                 {/* AI Suggestions Section */}
-                <div className="bg-white p-6 rounded-[2rem] shadow-xl shadow-blue-900/5 space-y-6 border border-slate-100">
+                <div className="bg-white p-5 sm:p-6 rounded-[2rem] shadow-xl shadow-blue-900/5 space-y-6 border border-slate-100 w-full">
                   
                   {/* Title & Desc */}
                   <div className="space-y-4">
@@ -256,7 +256,7 @@ const ReportIssuePage = () => {
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Title</label>
                       <input 
                         {...register('title', { required: true })}
-                        className="w-full text-xl font-bold text-slate-900 bg-transparent border-b border-slate-200 py-2 focus:border-blue-500 focus:outline-none placeholder:text-slate-300"
+                        className="w-full text-lg sm:text-xl font-bold text-slate-900 bg-transparent border-b border-slate-200 py-2 focus:border-blue-500 focus:outline-none placeholder:text-slate-300 break-words"
                         placeholder="Issue Title"
                       />
                     </div>
@@ -265,7 +265,7 @@ const ReportIssuePage = () => {
                       <textarea 
                         {...register('description', { required: true })}
                         rows={3}
-                        className="w-full text-base text-slate-600 bg-slate-50 rounded-2xl p-4 mt-2 focus:ring-2 focus:ring-blue-500/20 focus:outline-none resize-none"
+                        className="w-full text-sm sm:text-base text-slate-600 bg-slate-50 rounded-2xl p-4 mt-2 focus:ring-2 focus:ring-blue-500/20 focus:outline-none resize-none"
                         placeholder="Description..."
                       />
                     </div>
@@ -274,11 +274,11 @@ const ReportIssuePage = () => {
                   {/* Category Selection */}
                   <div>
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1 mb-3 block">Category</label>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3 w-full">
                       {categories.map(cat => (
                         <label 
                           key={cat.value}
-                          className={`flex flex-col items-center justify-center p-3 rounded-2xl border cursor-pointer transition-all ${
+                          className={`flex flex-col items-center justify-center p-3 rounded-2xl border cursor-pointer transition-all w-full ${
                             selectedCategory === cat.value 
                               ? `${cat.bg} ${cat.border} ring-2 ring-blue-500/30 scale-105` 
                               : 'bg-white border-slate-100 opacity-60 hover:opacity-100'
@@ -293,13 +293,13 @@ const ReportIssuePage = () => {
                   </div>
 
                    {/* Location Display */}
-                   <div className="bg-blue-50 p-4 rounded-2xl flex items-center gap-3">
+                   <div className="bg-blue-50 p-4 rounded-2xl flex items-center gap-3 w-full">
                       <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-600 shadow-sm shrink-0">
                          <MapPin size={20} />
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                          <p className="text-xs font-bold text-blue-400 uppercase">Location Detected</p>
-                         <p className="text-sm font-bold text-slate-800 truncate">{locationAddress || `${selectedLocation?.lat.toFixed(4)}, ${selectedLocation?.lng.toFixed(4)}`}</p>
+                         <p className="text-sm font-bold text-slate-800 truncate w-full max-w-[200px] sm:max-w-[300px]">{locationAddress || `${selectedLocation?.lat.toFixed(4)}, ${selectedLocation?.lng.toFixed(4)}`}</p>
                       </div>
                    </div>
 

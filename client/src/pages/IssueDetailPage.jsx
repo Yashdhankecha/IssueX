@@ -20,6 +20,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { useIssue } from '../contexts/IssueContext';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import api from '../utils/api';
 
 const IssueDetailPage = () => {
   const { id } = useParams();
@@ -182,6 +183,68 @@ const IssueDetailPage = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Verification Section (Full Width or placed in Right Col) */}
+            {issue.status === 'resolved' && (user?._id === issue.reporter?._id || user?.role === 'admin') && (
+               <div className="md:col-span-12 bg-green-50 border border-green-200 rounded-3xl p-6 md:p-8 mb-8">
+                  <div className="flex flex-col md:flex-row items-center gap-8">
+                     <div className="flex-1 space-y-4 text-center md:text-left">
+                        <div className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold uppercase tracking-wider mb-2">
+                           <CheckCircle size={14} className="mr-1" /> Action Required
+                        </div>
+                        <h2 className="text-2xl font-bold text-slate-900">Is this issue fixed?</h2>
+                        <p className="text-slate-600">The department has marked this as resolved. Please verify the completion photo below and confirm.</p>
+                        
+                        <div className="flex flex-wrap gap-4 justify-center md:justify-start pt-2">
+                           <button 
+                             onClick={async () => {
+                               try {
+                                 await api.put(`/api/issues/${issue._id}/approve-fix`);
+                                 toast.success('Fix verified! Issue closed.');
+                                 navigate(0);
+                               } catch (e) { toast.error('Error verifying fix'); }
+                             }}
+                             className="px-8 py-3 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-600/20 hover:bg-green-700 hover:scale-105 transition-all"
+                           >
+                              Yes, It's Fixed
+                           </button>
+                           <button 
+                             onClick={async () => {
+                               try {
+                                 await api.put(`/api/issues/${issue._id}/reject-fix`);
+                                 toast.error('Fix rejected. Re-opened.');
+                                 navigate(0);
+                               } catch (e) { toast.error('Error rejecting fix'); }
+                             }}
+                             className="px-8 py-3 bg-white text-rose-600 border border-rose-200 rounded-xl font-bold hover:bg-rose-50 transition-all"
+                           >
+                              No, Still Broken
+                           </button>
+                        </div>
+                     </div>
+
+                     {/* Comparison Images */}
+                     <div className="flex gap-4 items-center">
+                        <div className="w-32 md:w-48 aspect-square rounded-2xl overflow-hidden border-4 border-white shadow-lg relative">
+                           <img src={issue.images?.[0]} className="w-full h-full object-cover grayscale opacity-80" alt="Before" />
+                           <div className="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded">BEFORE</div>
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center shrink-0 z-10 -ml-6 -mr-6">
+                           <CheckCircle size={20} className="text-green-500" />
+                        </div>
+                        <div className="w-32 md:w-48 aspect-square rounded-2xl overflow-hidden border-4 border-green-400 shadow-xl relative">
+                           <img src={issue.resolutionImage || issue.images?.[0]} className="w-full h-full object-cover" alt="After" />
+                           <div className="absolute bottom-2 left-2 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded">AFTER</div>
+                           {issue.aiResolutionScore && (
+                              <div className="absolute top-2 right-2 bg-white/90 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                 AI Match {issue.aiResolutionScore}%
+                              </div>
+                           )}
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            )}
 
             {/* Right Col: Details & Actions */}
             <div className="md:col-span-5 space-y-8">
