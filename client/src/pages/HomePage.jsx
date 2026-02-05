@@ -20,12 +20,14 @@ import {
 import { useIssue } from '../contexts/IssueContext';
 import { useLocation } from '../contexts/LocationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 import IssueCard from '../components/IssueCard';
 
 const HomePage = () => {
   const { filteredIssues, loading, getIssueStats, filters, updateFilters } = useIssue();
   const { selectedLocation } = useLocation();
   const { user } = useAuth();
+  const { unreadCount } = useNotification();
   const stats = getIssueStats();
   const [searchQuery, setSearchQuery] = useState('');
   const [greeting, setGreeting] = useState('Welcome back');
@@ -138,7 +140,15 @@ const HomePage = () => {
                </div>
             </div>
          </div>
-         <div></div>
+
+         <div className="flex items-center space-x-2">
+            <Link to="/notifications" className="p-2 text-slate-600 relative">
+               <Bell size={24} />
+               {unreadCount > 0 && (
+                   <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+               )}
+            </Link>
+         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-8 space-y-6 lg:space-y-10">
@@ -230,7 +240,10 @@ const HomePage = () => {
                       type="text"
                       placeholder="Search issues, locations, or IDs..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        updateFilters({ search: e.target.value });
+                      }}
                       className="w-full pl-12 pr-4 py-3 lg:py-4 bg-white border border-slate-200 rounded-xl lg:rounded-2xl text-base focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:outline-none shadow-sm transition-all"
                     />
                 </div>

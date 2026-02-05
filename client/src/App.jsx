@@ -25,6 +25,8 @@ import SettingsPage from './pages/SettingsPage';
 import NotificationPage from './pages/NotificationPage';
 import AdminDashboard from './pages/AdminDashboard';
 import GovDashboard from './pages/GovDashboard';
+import ManagerDashboard from './pages/ManagerDashboard';
+import WorkerDashboard from './pages/WorkerDashboard';
 
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -37,6 +39,7 @@ import GovIssuesPage from './pages/GovIssuesPage';
 import GovMapPage from './pages/GovMapPage';
 import GovProfilePage from './pages/GovProfilePage';
 import GovNotificationPage from './pages/GovNotificationPage';
+import GamificationPage from './pages/GamificationPage';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -152,6 +155,24 @@ function App() {
                       </ProtectedRoute>
                     } />
 
+                    {/* Manager Routes */}
+                    <Route path="/manager-dashboard" element={
+                      <ProtectedRoute managerOnly>
+                        <Layout>
+                          <ManagerDashboard />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    {/* Worker Routes */}
+                    <Route path="/worker-dashboard" element={
+                      <ProtectedRoute workerOnly>
+                        <Layout>
+                          <WorkerDashboard />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
 
                     
                     {/* User Routes - Only accessible to non-admin users */}
@@ -207,6 +228,14 @@ function App() {
                       <ProtectedRoute>
                         <Layout>
                           <SettingsPage />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/impact" element={
+                      <ProtectedRoute userOnly>
+                        <Layout>
+                          <GamificationPage />
                         </Layout>
                       </ProtectedRoute>
                     } />

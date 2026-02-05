@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Map, Plus, User, Bell, BarChart3, AlertCircle, Users, LogOut } from 'lucide-react';
+import { Home, Map, Plus, User, Bell, BarChart3, AlertCircle, Users, LogOut, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 
@@ -28,7 +28,7 @@ const BottomNav = () => {
     { name: 'Home', href: '/dashboard', icon: Home },
     { name: 'Map', href: '/map', icon: Map },
     { name: 'Report', href: '/report', icon: Plus, isFab: true },
-    { name: 'Alerts', href: '/notifications', icon: Bell, badge: unreadCount },
+    { name: 'Impact', href: '/impact', icon: Sparkles },
     { name: 'Profile', href: '/profile', icon: User },
   ];
 
@@ -40,8 +40,32 @@ const BottomNav = () => {
     { name: 'Profile', href: '/gov-profile', icon: User },
   ];
 
+  const managerNavItems = [
+    { name: 'Dashboard', href: '/manager-dashboard', icon: BarChart3 },
+    { name: 'Map', href: '/gov-map', icon: Map },
+    { name: 'Logout', icon: LogOut, onClick: logout },
+  ];
+
   const isGovernment = user?.role === 'government';
-  const navItems = isAdmin ? adminNavItems : (isGovernment ? govNavItems : userNavItems);
+  const isManager = user?.role === 'manager';
+  const isWorker = user?.role === 'field_worker';
+
+  const workerNavItems = [
+    { name: 'My Tasks', href: '/worker-dashboard?view=list', icon: BarChart3 },
+    { name: 'Task Map', href: '/worker-dashboard?view=map', icon: Map },
+    { name: 'Profile', href: '/profile', icon: User },
+    { name: 'Logout', icon: LogOut, onClick: logout },
+  ];
+  
+  const navItems = isAdmin 
+    ? adminNavItems 
+    : (isManager 
+        ? managerNavItems 
+        : (isGovernment 
+            ? govNavItems 
+            : (isWorker ? workerNavItems : userNavItems)
+          )
+      );
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-200 py-2 px-4 z-[60] lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">

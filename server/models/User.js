@@ -62,14 +62,46 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin', 'government'],
+
+    enum: ['user', 'admin', 'government', 'manager', 'field_worker'],
     default: 'user'
   },
   department: {
     type: String,
-    enum: ['roads', 'lighting', 'water', 'cleanliness', 'safety', 'obstructions'],
-    required: false
+
+    enum: ['roads', 'lighting', 'water', 'cleanliness', 'safety', 'obstructions', null],
+    default: null
   },
+
+  // Gamification Fields
+  impactScore: {
+    type: Number,
+    default: 0
+  },
+  level: {
+    type: Number,
+    default: 1,
+    min: 1,
+    max: 5
+  },
+  badges: [{
+    type: String
+  }],
+  redeemedRewards: [{
+    rewardId: String,
+    redeemedAt: { type: Date, default: Date.now },
+    code: String
+  }],
+
+  // Track issues the user has voted on
+  upvotedIssues: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Issue'
+  }],
+  downvotedIssues: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Issue'
+  }],
   preferences: {
     notifications: {
       email: { type: Boolean, default: true },
@@ -96,8 +128,13 @@ const userSchema = new mongoose.Schema({
 // Index for better query performance
 userSchema.index({ email: 1 })
 
-// Pre-save middleware to hash password
+// Pre-save middleware
 userSchema.pre('save', async function (next) {
+  // Handle empty department
+  if (this.department === '') {
+    this.department = null;
+  }
+
   if (!this.isModified('password')) return next()
 
   try {
@@ -110,7 +147,7 @@ userSchema.pre('save', async function (next) {
 })
 
 // Method to compare password
-userSchema.methods.comparePassword = async function (candidatePassword) {
+userSchema.methods.matchPassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password)
 }
 

@@ -89,7 +89,7 @@ router.get('/issues', protect, requireAdmin, async (req, res) => {
       .sort(sortObject)
       .skip(skip)
       .limit(parseInt(limit))
-      .select('title description category status createdAt location images statusLogs');
+
 
     const total = await Issue.countDocuments(query);
 
@@ -185,6 +185,23 @@ router.patch('/issues/:id/status', protect, requireAdmin, async (req, res) => {
     issue.statusLogs.push(statusLog);
 
     await issue.save();
+
+    // Notify reporter of status change
+    if (issue.reportedBy) {
+      try {
+        await Notification.create({
+          userId: issue.reportedBy,
+          type: 'update',
+          title: 'Issue Status Updated',
+          message: `Your issue "${issue.title}" has been updated to "${status.replace('_', ' ')}".`,
+          issueId: issue._id,
+          icon: 'update',
+          priority: 'medium'
+        });
+      } catch (err) {
+        console.error('Failed to send status notification', err);
+      }
+    }
 
     // Populate reporter info for response
     await issue.populate('reportedBy', 'name email');
@@ -327,16 +344,21 @@ router.patch('/users/:id', protect, requireAdmin, async (req, res) => {
   try {
     const { role, department, isActive, isEmailVerified } = req.body;
 
+    console.log(`Admin updating user ${req.params.id}. Body:`, req.body);
+
     const updateData = {};
     if (role) updateData.role = role;
-    if (department) updateData.department = department;
+    // Allow setting department to null explicitely or if it is present
+    if (department !== undefined) updateData.department = department;
     if (typeof isActive === 'boolean') updateData.isActive = isActive;
     if (typeof isEmailVerified === 'boolean') updateData.isEmailVerified = isEmailVerified;
+
+    console.log('Update payload:', updateData);
 
     const user = await User.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true }
+      { new: true, runValidators: true } // Ensure validators run
     ).select('-password');
 
     if (!user) {
@@ -571,6 +593,124 @@ router.get('/export', protect, requireAdmin, async (req, res) => {
       message: 'Server error while exporting data',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  }
+});
+
+// GET /api/admin/reports - Generate CSV reports
+router.get('/reports', protect, requireAdmin, async (req, res) => {
+  try {
+    const { type, status } = req.query;
+
+    if (type === 'issues') {
+      const query = {};
+      if (status && status !== 'all') query.status = status;
+
+      const issues = await Issue.find(query).populate('reportedBy', 'name email');
+
+      // CSV Header
+      let csv = 'ID,Title,Description,Status,Category,Severity,Priority,Reporter Name,Reporter Email,Date Reported\n';
+
+      // CSV Rows
+      csv += issues.map(issue => {
+        const escape = (text) => `"${String(text || '').replace(/"/g, '""')}"`;
+        return [
+          issue._id,
+          escape(issue.title),
+          escape(issue.description),
+          issue.status,
+          issue.category,
+          issue.severity || 'medium',
+          issue.priority || 'medium',
+          escape(issue.reportedBy?.name || 'Anonymous'),
+          escape(issue.reportedBy?.email || 'N/A'),
+          new Date(issue.createdAt).toISOString()
+        ].join(',');
+      }).join('\n');
+
+      res.header('Content-Type', 'text/csv');
+      res.attachment(`issues_report_${new Date().toISOString().split('T')[0]}.csv`);
+      return res.send(csv);
+
+    } else if (type === 'users') {
+      const users = await User.find().select('-password');
+
+      let csv = 'ID,Name,Email,Role,Department,Joined Date\n';
+
+      csv += users.map(user => {
+        const escape = (text) => `"${String(text || '').replace(/"/g, '""')}"`;
+        return [
+          user._id,
+          escape(user.name),
+          escape(user.email),
+          user.role,
+          user.department || '',
+          new Date(user.createdAt).toISOString()
+        ].join(',');
+      }).join('\n');
+
+      res.header('Content-Type', 'text/csv');
+      res.attachment(`users_report_${new Date().toISOString().split('T')[0]}.csv`);
+      return res.send(csv);
+    }
+
+    res.status(400).json({ success: false, message: 'Invalid report type' });
+
+  } catch (error) {
+    console.error('Report generation error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// POST /api/admin/issues/:id/remind - Send reminder to relevant department
+router.post('/issues/:id/remind', protect, async (req, res) => {
+  try {
+    // Check permission
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      return res.status(403).json({ success: false, message: 'Access denied. Admin or Manager role required.' });
+    }
+
+    const issue = await Issue.findById(req.params.id);
+    if (!issue) {
+      return res.status(404).json({ success: false, message: 'Issue not found' });
+    }
+
+
+    // Find government users in this department
+    const govUsers = await User.find({
+      role: 'government',
+      department: issue.category,
+      isActive: true
+    });
+
+    if (govUsers.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `No active government users found for ${issue.category} department`
+      });
+    }
+
+    // Create notifications
+    const notifications = govUsers.map(user => ({
+      userId: user._id,
+      type: 'system',
+      title: 'Action Reminder',
+      message: `Admin Reminder: Please attend to the reported ${issue.category} issue: "${issue.title}"`,
+      issueId: issue._id,
+      icon: 'alert',
+      priority: 'high',
+      createdAt: new Date()
+    }));
+
+    await Notification.insertMany(notifications);
+
+    res.json({
+      success: true,
+      message: `Reminder sent to ${govUsers.length} ${issue.category} department official(s)`
+    });
+
+  } catch (error) {
+    console.error('Remind dept error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
