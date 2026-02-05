@@ -343,7 +343,6 @@ router.get('/user/:id', protect, requireAdmin, async (req, res) => {
 router.patch('/users/:id', protect, requireAdmin, async (req, res) => {
   try {
     const { role, department, isActive, isEmailVerified } = req.body;
-
     console.log(`Admin updating user ${req.params.id}. Body:`, req.body);
 
     const updateData = {};

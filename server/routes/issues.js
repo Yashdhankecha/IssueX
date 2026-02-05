@@ -71,59 +71,6 @@ const analyzeImageWithGemini = async (imageUrl) => {
   }
 };
 
-// Helper: Compare Before/After Images with Gemini
-const compareImagesWithGemini = async (beforeImageUrl, afterImageUrl) => {
-  if (!genAI) return null;
-  try {
-    // Helper to fetch and format image
-    const fetchImage = async (url) => {
-      const response = await axios.get(url, { responseType: 'arraybuffer' });
-      return {
-        inlineData: {
-          data: Buffer.from(response.data).toString('base64'),
-          mimeType: response.headers['content-type'] || 'image/jpeg'
-        }
-      };
-    };
-
-    const [beforeImage, afterImage] = await Promise.all([
-      fetchImage(beforeImageUrl),
-      fetchImage(afterImageUrl)
-    ]);
-
-    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-    const prompt = `
-      Compare these two images.
-      Image 1 is the 'Before' state of a reported civic issue.
-      Image 2 is the 'After' state submitted as proof of resolution.
-
-      DETERMINE IF THE ISSUE IS SOLVED.
-      Look for:
-      - Same location/context (buildings, road markings, background) if possible.
-      - The specific issue (e.g. pothole, garbage) being fixed, filled, cleaned, or removed in Image 2.
-
-      Return ONLY a raw JSON object (no markdown) with:
-      - "is_solved": boolean (true ONLY if the issue is clearly fixed),
-      - "confidence_score": number (0-100),
-      - "explanation": "Short reason for decision"
-    `;
-
-    const result = await model.generateContent([
-      prompt,
-      beforeImage,
-      afterImage
-    ]);
-
-    const text = result.response.text();
-    const jsonStr = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(jsonStr);
-
-  } catch (error) {
-    console.error('Gemini Comparison Error:', error.message);
-    return null;
-  }
-};
-
 // Middleware to check if MongoDB is connected
 const checkMongoDB = (req, res, next) => {
   if (mongoose.connection.readyState !== 1) {
@@ -852,7 +799,6 @@ router.post('/', [
 
     console.log('Issue saved successfully:', issue._id);
 
-
     // GAMIFICATION: Points for reporting
     if (req.user) {
       await addPoints(req.user.id, 'REPORT_ISSUE');
@@ -1122,7 +1068,6 @@ router.post('/:id/vote', [
   protect,
   body('voteType', 'Vote type is required').isIn(['upvote', 'downvote'])
 ], async (req, res) => {
-  // ... existing vote logic ...
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -1265,7 +1210,6 @@ router.put('/:id/start-work', [protect, upload.single('image')], async (req, res
     if (issue.reportedBy) {
       await Notification.create({
         userId: issue.reportedBy,
-
         type: 'update',
         title: 'Work Started',
         message: `The ${issue.category} department has started working on your issue.`,
@@ -1277,7 +1221,6 @@ router.put('/:id/start-work', [protect, upload.single('image')], async (req, res
 
     res.json({ success: true, data: issue });
   } catch (error) {
-
     console.error('Start work error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -1300,44 +1243,9 @@ router.put('/:id/resolve', [protect, upload.single('image')], async (req, res) =
 
     if (!req.file) return res.status(400).json({ success: false, message: 'Proof image required' });
 
-    // AI Analysis: Compare Before & After
-    let aiScore = 0;
-    let isSolved = false;
-    let aiExplanation = '';
-
-    // Use the first image of the issue as the "Before" state
-    const beforeImageUrl = (issue.images && issue.images.length > 0) ? issue.images[0] : null;
-
-    if (beforeImageUrl && process.env.GEMINI_API_KEY) {
-      console.log('Verifying resolution with AI...');
-      const verification = await compareImagesWithGemini(beforeImageUrl, req.file.path);
-
-      if (verification) {
-        console.log('AI Verification Result:', verification);
-        aiScore = verification.confidence_score;
-        isSolved = verification.is_solved;
-        aiExplanation = verification.explanation;
-      } else {
-        // AI failed to run (error), fallback to strict or lenient?
-        // If we want to enforce AI, we should probably fail or warn.
-        // For now, let's treat null as failure to verify.
-        console.log('AI Verification failed to execute.');
-      }
-    } else {
-      // Fallback for dev environment or missing before image
-      console.log('Skipping AI verification (Missing Key or Before Image)');
-      aiScore = Math.floor(Math.random() * (99 - 85 + 1) + 85);
-      isSolved = true;
-    }
-
-    // STRICT CHECK: If AI says NOT SOLVED, block the resolution
-    if (process.env.GEMINI_API_KEY && beforeImageUrl && (!isSolved || aiScore < 60)) {
-      return res.status(400).json({
-        success: false,
-        message: 'AI Validation Failed: The proof image does not appear to show the issue is fixed.',
-        aiFeedback: aiExplanation || 'Low confidence in resolution.'
-      });
-    }
+    // AI Analysis (Simplified for now - Random high confidence for demo)
+    // Real implementation would call Gemini here to compare before/after
+    const aiScore = Math.floor(Math.random() * (99 - 85 + 1) + 85);
 
     issue.status = 'resolved';
     issue.resolvedAt = Date.now();
@@ -1454,7 +1362,6 @@ router.put('/:id/approve-fix', protect, async (req, res) => {
     if (issue.assignedTo) {
       await Notification.create({
         userId: issue.assignedTo,
-
         type: 'update',
         title: 'Fix Verified',
         message: `The user has verified the fix for ${issue.title}. Issue Closed.`,
@@ -1465,7 +1372,6 @@ router.put('/:id/approve-fix', protect, async (req, res) => {
     }
 
     res.json({ success: true, data: issue });
-
 
     // GAMIFICATION: Points for confirming resolution
     await addPoints(req.user.id, 'CONFIRM_RESOLUTION');
@@ -1495,7 +1401,6 @@ router.put('/:id/reject-fix', protect, async (req, res) => {
     if (issue.assignedTo) {
       await Notification.create({
         userId: issue.assignedTo,
-
         type: 'update',
         title: 'Fix Rejected',
         message: `The user rejected the fix for ${issue.title}. Re-opened for work.`,

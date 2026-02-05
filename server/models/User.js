@@ -62,13 +62,11 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-
     enum: ['user', 'admin', 'government', 'manager', 'field_worker'],
     default: 'user'
   },
   department: {
     type: String,
-
     enum: ['roads', 'lighting', 'water', 'cleanliness', 'safety', 'obstructions', null],
     default: null
   },
